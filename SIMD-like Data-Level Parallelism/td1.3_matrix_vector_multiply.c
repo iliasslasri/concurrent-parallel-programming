@@ -16,9 +16,9 @@ typedef int vector_t[SIZE];
 /// @param v The input vector.
 void matrix_vector_multiply(matrix_t d, matrix_t m, vector_t v)
 {
-  for(int i = 0; i < SIZE; i++ )
+  for(int j = 0; j < SIZE; j++ )
   {
-    for(int j = 0; j < SIZE; j++ )
+    for(int i = 0; i < SIZE; i++ )
     {
       d[j][i] = m[j][i] * v[i];
     }
