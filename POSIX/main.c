@@ -3,26 +3,28 @@
 #include <stdlib.h>
 
 
-void * f (void * arg) {
-    int id = *(int*) arg;
-    printf("id = %d\n ", id);
+int v = 0;
+pthread_mutex_t m;
+
+void *f(void *){
+    // int i;
+    pthread_t t;
+    t = pthread_self();
+    for (int i=0; i<10000; i++){
+        pthread_mutex_lock(&m);
+        v = v + 1;
+        pthread_mutex_unlock(&m);
+    }
+    printf("%d: v = %d\n ", t, v);
 }
 
 
-int main (void) {
-    pthread_t t[2];
-    int id;
-    int * arg;
-    printf("main\n");
-    for (id = 0; id < 2; id++){
-        arg = malloc(sizeof(int));
-        *arg = id;
-        pthread_create(&t[id], NULL,  f, arg);
-    }
-    for (id = 0; id < 2; id++){
-        printf("main: waiting for thread %d\n", id);
-        pthread_join(t[id], NULL);
-    }
-    printf("main: all threads terminated\n");
-    return 0;
+void main (void){
+pthread_t t1, t2;
+    pthread_mutex_init(&m, NULL);
+    pthread_create(&t1, NULL, f, NULL);
+    pthread_create(&t2, NULL, f, NULL);
+    pthread_join(t1, NULL);
+    pthread_join(t2, NULL);
+    printf ("v = %d\n ", v);
 }
