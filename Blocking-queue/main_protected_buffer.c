@@ -142,10 +142,22 @@ int main(int argc, char *argv[]) {
     set_task_name(i, task_name);
   }
 
+  tasks = (pthread_t *)malloc((n_consumers + n_producers) * sizeof(pthread_t));
   // Wait for producers and consumers termination
   for (i = 0; i < n_consumers + n_producers; i++) {
-    
+    if (i < n_consumers) {
+      // create consumers
+      pthread_create(&tasks[i], NULL, main_consumer, (void *)&i);
+    } else {
+      // create producers
+      pthread_create(&tasks[i], NULL, main_producer, (void *)&i);
+    }
   }
+  // Wait for producers and consumers termination
+  for (i = 0; i < n_consumers + n_producers; i++) {
+    pthread_join(tasks[i], NULL);
+  }
+  return 0;
 }
 
 void read_file(char *filename) {
