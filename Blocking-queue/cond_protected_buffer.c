@@ -138,7 +138,6 @@ int cond_protected_buffer_add(protected_buffer_t *b, void *d) {
 void *cond_protected_buffer_poll(protected_buffer_t *b,
                                  struct timespec *abstime) {
   void *d = NULL;
-  int rc = 0;
 
   // Enter mutual exclusion
   pthread_mutex_lock(b->mutex_cons);
@@ -173,7 +172,6 @@ void *cond_protected_buffer_poll(protected_buffer_t *b,
 // successful. Otherwise, return 1.
 int cond_protected_buffer_offer(protected_buffer_t *b, void *d,
                                 struct timespec *abstime) {
-  int rc = 0;
   int done = 0;
 
   // Enter mutual exclusion

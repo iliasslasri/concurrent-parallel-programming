@@ -114,7 +114,6 @@ void read_file(char *filename);
 
 int main(int argc, char *argv[]) {
   int i;
-  int *data;
   char *task_name;
 
   if (argc != 2) {
