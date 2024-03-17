@@ -87,7 +87,7 @@ void *sem_protected_buffer_remove(protected_buffer_t *b) {
   int rc = -1;
 
   // Enforce synchronisation semantics using semaphores.
-
+  rc = sem_trywait(b->full_slots);
   if (rc != 0) {
     if (d == NULL)
       mtxprintf(pb_debug, "remove (U) - data=NULL\n");
@@ -96,8 +96,9 @@ void *sem_protected_buffer_remove(protected_buffer_t *b) {
     return d;
   }
 
+  // if rc == 0, we have a full slot, so we can continue.
   // Enter mutual exclusion.
-
+  sem_wait(b->sem_mutex_cons);
   d = circular_buffer_get(b->buffer);
   if (d == NULL)
     mtxprintf(pb_debug, "remove (U) - data=NULL\n");
@@ -105,9 +106,9 @@ void *sem_protected_buffer_remove(protected_buffer_t *b) {
     mtxprintf(pb_debug, "remove (U) - data=%d\n", *(int *)d);
 
     // Leave mutual exclusion.
-
+  sem_post(b->sem_mutex_cons);
   // Enforce synchronisation semantics using semaphores.
-
+  sem_post(b->empty_slots);
   return d;
 }
 
@@ -117,7 +118,7 @@ int sem_protected_buffer_add(protected_buffer_t *b, void *d) {
   int rc = -1;
 
   // Enforce synchronisation semantics using semaphores.
-
+  rc = sem_trywait(b->empty_slots);
   if (rc != 0) {
     d = NULL;
     if (d == NULL)
@@ -128,7 +129,7 @@ int sem_protected_buffer_add(protected_buffer_t *b, void *d) {
   }
 
   // Enter mutual exclusion.
-
+  sem_wait(b->sem_mutex_prod);
   circular_buffer_put(b->buffer, d);
   if (d == NULL)
     mtxprintf(pb_debug, "add (U) - data=NULL\n");
@@ -136,8 +137,9 @@ int sem_protected_buffer_add(protected_buffer_t *b, void *d) {
     mtxprintf(pb_debug, "add (U) - data=%d\n", *(int *)d);
 
     // Leave mutual exclusion.
-
+  sem_post(b->sem_mutex_prod);
   // Enforce synchronisation semantics using semaphores.
+  sem_post(b->full_slots);
   return 1;
 }
 
