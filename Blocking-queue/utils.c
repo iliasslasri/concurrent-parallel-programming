@@ -99,25 +99,17 @@ void add_millis_to_timespec(struct timespec *ts, long msec) {
   ts->tv_sec = ts->tv_sec + sec;
 }
 
-// Delay until an absolute time. Translate the absolute time into a
-// relative one and use nanosleep. This is incorrect (we fix that).
-void delay_until(struct timespec *absolute_time) {
-  struct timeval tv_now;
-  struct timespec ts_now;
-  struct timespec relative_time;
 
-  gettimeofday(&tv_now, NULL);
-  TIMEVAL_TO_TIMESPEC(&tv_now, &ts_now);
-  relative_time.tv_nsec = absolute_time->tv_nsec - ts_now.tv_nsec;
-  relative_time.tv_sec = absolute_time->tv_sec - ts_now.tv_sec;
-  if (relative_time.tv_nsec < 0) {
-    relative_time.tv_nsec = 1E9 + relative_time.tv_nsec;
-    relative_time.tv_sec--;
-  }
-  if (relative_time.tv_sec < 0)
-    return;
+// Delay until an absolute time.
+// alternative to initial delay_until
+void delay_until(struct timespec *absolute_time)
+{
+  pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+  pthread_cond_t condvar = PTHREAD_COND_INITIALIZER;
 
-  nanosleep(&relative_time, NULL);
+  pthread_mutex_lock(&mutex);
+  pthread_cond_timedwait(&condvar, &mutex, absolute_time);
+  pthread_mutex_unlock(&mutex);
 }
 
 // Compute time elapsed from start time
