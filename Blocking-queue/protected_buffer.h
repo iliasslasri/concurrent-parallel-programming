@@ -19,6 +19,12 @@ typedef struct {
   pthread_mutex_t *mutex_cons; // Mutex for consumers
   pthread_cond_t *full;        // Condition variable for full buffer  
   pthread_cond_t *empty;       // Condition variable for empty buffer
+
+  // Semaphore based implementation
+  sem_t *sem_mutex_prod; // we can use the mutexes as well, but we use semaphores to paractice
+  sem_t *sem_mutex_cons;
+  sem_t *empty_slots; 
+  sem_t *full_slots;
 } protected_buffer_t;
 
 // Initialise the protected buffer structure above. sem_impl specifies

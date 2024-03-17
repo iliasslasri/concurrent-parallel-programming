@@ -18,10 +18,17 @@ protected_buffer_t *sem_protected_buffer_init(int length) {
   b = (protected_buffer_t *)malloc(sizeof(protected_buffer_t));
   b->buffer = circular_buffer_init(length);
   // Initialize the synchronization attributes
-  // Use these filenames as named semaphores
+
   sem_unlink(EMPTY_SLOTS_NAME);
   sem_unlink(FULL_SLOTS_NAME);
-  // Open the semaphores using the filenames above
+  sem_unlink("/mutex_prod");
+  sem_unlink("/mutex_cons");
+
+   // Open the semaphores using the filenames above
+  b->full_slots = sem_open(FULL_SLOTS_NAME, O_CREAT, 777, 0);
+  b->empty_slots = sem_open(EMPTY_SLOTS_NAME, O_CREAT, 777, length);
+  b->sem_mutex_cons = sem_open("/mutex_cons", O_CREAT, 777, 1);
+  b->sem_mutex_prod = sem_open("/mutex_prod", O_CREAT, 777, 1);
   return b;
 }
 
@@ -31,8 +38,9 @@ void *sem_protected_buffer_get(protected_buffer_t *b) {
   void *d;
 
   // Enforce synchronisation semantics using semaphores.
-
+  sem_wait(b->full_slots);
   // Enter mutual exclusion.
+  sem_wait(b->sem_mutex_cons);
 
   d = circular_buffer_get(b->buffer);
   if (d == NULL)
@@ -41,9 +49,11 @@ void *sem_protected_buffer_get(protected_buffer_t *b) {
     mtxprintf(pb_debug, "get (B) - data=%d\n", *(int *)d);
 
     // Leave mutual exclusion.
-
+  sem_post(b->sem_mutex_cons);
   // Enforce synchronisation semantics using semaphores.
+  sem_post(b->empty_slots);
 
+  // We wait for fill_slots and we decrement it, and at the end we increment empty_slots.
   return d;
 }
 
@@ -52,8 +62,9 @@ void *sem_protected_buffer_get(protected_buffer_t *b) {
 void sem_protected_buffer_put(protected_buffer_t *b, void *d) {
 
   // Enforce synchronisation semantics using semaphores.
-
+  sem_wait(b->empty_slots);
   // Enter mutual exclusion.
+  sem_wait(b->sem_mutex_prod);
 
   circular_buffer_put(b->buffer, d);
   if (d == NULL)
@@ -62,8 +73,11 @@ void sem_protected_buffer_put(protected_buffer_t *b, void *d) {
     mtxprintf(pb_debug, "put (B) - data=%d\n", *(int *)d);
 
     // Leave mutual exclusion.
-
+  sem_post(b->sem_mutex_prod);
   // Enforce synchronisation semantics using semaphores.
+  sem_post(b->full_slots);
+
+  // We wait for empty_slots and we decrement it, and at the end we increment fill_slots.
 }
 
 // Extract an element from buffer. If the attempted operation is not
