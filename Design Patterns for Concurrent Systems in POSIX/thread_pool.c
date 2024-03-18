@@ -17,6 +17,9 @@ thread_pool_t *thread_pool_init(int core_pool_size, int max_pool_size) {
   thread_pool->core_pool_size = core_pool_size;
   thread_pool->max_pool_size = max_pool_size;
   thread_pool->size = 0;
+  // init mutex
+  thread_pool->mutex = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
+  pthread_mutex_init(thread_pool->mutex, NULL);
   return thread_pool;
 }
 
@@ -38,6 +41,7 @@ int pool_thread_create(thread_pool_t *thread_pool, main_func_t main,
   /*
     Protect structure against concurrent accesses
   */
+  pthread_mutex_lock(thread_pool->mutex);
 
   if (thread_pool->size < thread_pool->core_pool_size) {
     // Always create a thread as long as there are less then
@@ -52,6 +56,8 @@ int pool_thread_create(thread_pool_t *thread_pool, main_func_t main,
     extended_main_params->id = thread_pool->size;
 
     // Create a thread to execute the main function passed as parameters
+    pthread_create(&thread, NULL, main, (void *)extended_main_params);
+    thread_pool->size++;
 
     asprintf(&task_name, "core %02d", extended_main_params->id);
     set_task_name(extended_main_params->id, task_name);
@@ -68,6 +74,7 @@ int pool_thread_create(thread_pool_t *thread_pool, main_func_t main,
   }
 
   // Do not protect the structure against concurrent accesses anymore
+  pthread_mutex_unlock(thread_pool->mutex);
 
   if (status != NOTHREAD)
     mtxprintf(pt_debug, "thread created\n");
