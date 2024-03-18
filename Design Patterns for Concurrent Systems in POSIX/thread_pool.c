@@ -56,8 +56,12 @@ int pool_thread_create(thread_pool_t *thread_pool, main_func_t main,
     extended_main_params->id = thread_pool->size;
 
     // Create a thread to execute the main function passed as parameters
-    pthread_create(&thread, NULL, main, (void *)extended_main_params);
-    thread_pool->size++;
+    if (pthread_create(&thread, NULL, main, extended_main_params))
+    {
+      thread_pool->size--;
+      perror("pthread_create() error\n");
+      exit(1);
+    }
 
     asprintf(&task_name, "core %02d", extended_main_params->id);
     set_task_name(extended_main_params->id, task_name);
