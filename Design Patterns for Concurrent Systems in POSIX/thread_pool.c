@@ -19,6 +19,8 @@ thread_pool_t *thread_pool_init(int core_pool_size, int max_pool_size) {
   thread_pool->size = 0;
   // init mutex
   thread_pool->mutex = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
+  thread_pool->cond_minus = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
+  pthread_cond_init(thread_pool->cond_minus, NULL);
   pthread_mutex_init(thread_pool->mutex, NULL);
   return thread_pool;
 }
@@ -104,6 +106,14 @@ void pool_thread_terminate(thread_pool_t *thread_pool) {
   /*
     Protect against concurrent accesses. Broadcast the update.
   */
+  pthread_mutex_lock(thread_pool->mutex);
+
+  if(thread_pool->size > thread_pool->core_pool_size)
+    thread_pool->size--;
+
+  pthread_cond_broadcast(thread_pool->cond_minus);
+
+  pthread_mutex_unlock(thread_pool->mutex);
 }
 
 /*
