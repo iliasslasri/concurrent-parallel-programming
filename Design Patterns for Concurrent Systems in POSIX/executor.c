@@ -55,12 +55,17 @@ future_t *submit_callable(executor_t *executor, callable_t *callable) {
   callable->executor = executor;
   future->callable = callable;
   future->completed = 0;
+  future->result = 0;
+  future->cond = (pthread_cond_t *)malloc(sizeof(pthread_cond_t));
+  future->mutex = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
 
   /*
     Future must include synchronisation objects to block threads until the
     result of the callable computation becames available. See
     function get_callable_result.
   */
+  pthread_mutex_init(future->mutex, NULL);
+  pthread_cond_init(future->cond, NULL);
 
   /*
     Try to create a thread, but do not exceed core_pool_size
@@ -105,12 +110,17 @@ void *get_callable_result(future_t *future) {
     Protect against concurrent accesses. Block until the callable has
     completed.
   */
-
+  pthread_mutex_lock(future->mutex);
+  while (!future->completed)
+  {
+    pthread_cond_wait(future->cond, future->mutex);
+  }
   result = (void *)future->result;
 
   /*
     Unprotect against concurrent accesses
   */
+  pthread_mutex_unlock(future->mutex);
 
   /*
     Do not bother to deallocate future
@@ -167,7 +177,8 @@ void *pool_thread_main(void *arg) {
         its synchronisation objects should be updated to resume threads waiting
         for the result.
       */
-
+      future->completed = 1;
+      pthread_cond_signal(future->cond);
       /*
        For sanity reasons, initialize the next future to shutdown future in
        order for the system to "work" while not being fully implemented
