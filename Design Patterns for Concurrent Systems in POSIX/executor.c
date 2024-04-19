@@ -78,6 +78,8 @@ future_t *submit_callable(executor_t *executor, callable_t *callable) {
       When there are already enough created threads, queue the callable
       in the blocking queue.
     */
+  if (protected_buffer_add(executor->futures, future))
+    return future;
 
   /*
     When the queue is full, pop the first future from the queue and
@@ -94,6 +96,8 @@ future_t *submit_callable(executor_t *executor, callable_t *callable) {
     parameter set to true).
   */
 
+  if (pool_thread_create(executor->thread_pool, pool_thread_main, future, true))
+    return future;
   /*
     We failed. The executor is overrun.
   */
@@ -201,6 +205,7 @@ void *pool_thread_main(void *arg) {
           add another shutdown future to the queue to unblock another thread
           and force it to terminate.
         */
+        future = protected_buffer_get(executor->futures);
         if (is_shutdown(future)) {
           pool_thread_terminate(executor->thread_pool);
           terminate = true;
