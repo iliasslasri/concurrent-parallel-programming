@@ -108,7 +108,7 @@ void pool_thread_terminate(thread_pool_t *thread_pool) {
   */
   pthread_mutex_lock(thread_pool->mutex);
 
-  if(thread_pool->size > thread_pool->core_pool_size)
+  if(thread_pool->size >= 0)
     thread_pool->size--;
 
   pthread_cond_broadcast(thread_pool->cond_minus);
@@ -124,8 +124,13 @@ void wait_thread_pool_empty(thread_pool_t *thread_pool) {
     Wait for thread pool size to be equal zero. Protect section against
     concurrent access
   */
-  if (thread_pool->size != 0)
-    mtxprintf(pt_debug, "pool not empty, exit process\n");
+  pthread_mutex_lock(thread_pool->mutex);
+
+  while (thread_pool->size != 0)
+    pthread_cond_wait(thread_pool->cond_minus, thread_pool->mutex);
+
+  pthread_mutex_unlock(thread_pool->mutex);
+  
 }
 
 int get_shutdown(thread_pool_t *thread_pool) {

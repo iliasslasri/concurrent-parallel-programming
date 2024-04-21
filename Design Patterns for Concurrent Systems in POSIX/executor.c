@@ -226,14 +226,11 @@ void *pool_thread_main(void *arg) {
           There is no callable to handle after timeout, remove the current
           pool thread from the pool. If it is successful, terminate thread.
         */
-        struct timespec rt;
-        struct timeval at;
+        gettimeofday(&tv_deadline, NULL);
+        TIMEVAL_TO_TIMESPEC(&tv_deadline, &ts_deadline);
 
-        gettimeofday(&at, NULL);
-        TIMEVAL_TO_TIMESPEC(&at, &rt);
-
-        add_millis_to_timespec(&rt, executor->keep_alive_time);
-        future = protected_buffer_poll(executor->futures, &rt);
+        add_millis_to_timespec(&ts_deadline, executor->keep_alive_time);
+        future = protected_buffer_poll(executor->futures, &ts_deadline);
 
         if (future == NULL) {
           pool_thread_terminate(executor->thread_pool);
@@ -251,8 +248,6 @@ void *pool_thread_main(void *arg) {
         }
       }
     } else {
-      future->result = callable->main(callable->params);
-
       /*
         Wait for the next release time. Implement withFixedRate semantics.
         Note that current ts_deadline represents the start time of the
@@ -261,10 +256,15 @@ void *pool_thread_main(void *arg) {
       /*
         Loop as long as there is no shutdown.
       */
-      if (get_shutdown(executor->thread_pool)) {
-        pool_thread_terminate(executor->thread_pool);
-        terminate = true;
+      while (!get_shutdown(executor->thread_pool)) {
+        gettimeofday(&tv_deadline, NULL);
+        TIMEVAL_TO_TIMESPEC(&tv_deadline, &ts_deadline);
+        add_millis_to_timespec(&ts_deadline, callable->period);
+        future->result = callable->main(callable->params);
+        delay_until(&ts_deadline);
       };
+      pool_thread_terminate(executor->thread_pool);
+      terminate = true;
     }
   }
   mtxprintf(pt_debug, "terminated\n");
@@ -289,6 +289,8 @@ void executor_shutdown(executor_t *executor) {
     Add in future queue a shutdown future to unblock blocked threads and force
     their termination.
   */
+  future_t *future = &shutdown_future;
+  protected_buffer_add(executor->futures, future);
   /*
     Wait for all threads to be deallocated.
   */
