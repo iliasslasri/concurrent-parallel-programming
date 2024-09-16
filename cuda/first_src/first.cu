@@ -18,3 +18,12 @@ int main() {
     checkCudaError(cudaDeviceSynchronize(), "Device synchronization");
     return 0;
 }
+
+/**
+    * Compile with:
+    *  nvcc -o first first.cu
+    * Run with:
+    * ./first
+    * Expected output:
+    * Hello, CUDA!
+ */
